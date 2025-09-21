@@ -39,12 +39,22 @@ class DashboardStats(BaseModel):
     total_vehicles: int
     open_work_orders: int
 
+class Location(BaseModel):
+    id: int
+    name: str
+
 # --- In-memory "Database" ---
 db_parts: List[Part] = [
     Part(name="Oil Filter", part_number="OF-1022", supplier="Supplier A", quantity=25, price=15.50),
     Part(name="Brake Pad Set", part_number="BP-4510", supplier="Supplier B", quantity=8, price=75.00),
     Part(name="Headlight Bulb", part_number="HB-9005", supplier="Supplier A", quantity=50, price=12.00),
     Part(name="Wiper Blade", part_number="WB-22", supplier="Supplier C", quantity=5, price=22.75),
+]
+
+db_locations: List[Location] = [
+    Location(id=1, name="Main Warehouse"),
+    Location(id=2, name="Garage A"),
+    Location(id=3, name="Service Bay 1"),
 ]
 
 db_vehicles: List[Vehicle] = [
@@ -97,6 +107,11 @@ def create_vehicle(vehicle: Vehicle):
 @app.get("/api/v1/vehicles", response_model=List[Vehicle])
 def get_vehicles():
     return db_vehicles
+
+# Locations
+@app.get("/api/v1/locations", response_model=List[Location])
+def get_locations():
+    return db_locations
 
 # Work Orders
 @app.post("/api/v1/work-orders", response_model=WorkOrder)

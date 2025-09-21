@@ -8,6 +8,7 @@ import VehicleList from './components/VehicleList';
 import AddVehicleForm from './components/AddVehicleForm';
 import WorkOrderList from './components/WorkOrderList';
 import AddWorkOrderForm from './components/AddWorkOrderForm';
+import LocationsList from './components/LocationsList';
 import './App.css';
 
 function App() {
@@ -31,6 +32,9 @@ function App() {
             <Button color="inherit" component={RouterLink} to="/parts">
               Parts
             </Button>
+            <Button color="inherit" component={RouterLink} to="/locations">
+              Locations
+            </Button>
           </Toolbar>
         </AppBar>
         <Container component="main" sx={{ mt: 10, p: 3 }}>
@@ -42,6 +46,7 @@ function App() {
             <Route path="/vehicles/add" element={<AddVehicleForm />} />
             <Route path="/work-orders" element={<WorkOrderList />} />
             <Route path="/work-orders/add" element={<AddWorkOrderForm />} />
+            <Route path="/locations" element={<LocationsList />} />
           </Routes>
         </Container>
       </Box>

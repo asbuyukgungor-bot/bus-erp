@@ -48,9 +48,19 @@ export interface DashboardStats {
     open_work_orders: number;
 }
 
+export interface Location {
+    id: number;
+    name: string;
+}
+
 // --- API Functions ---
 export const getDashboardStats = async (): Promise<DashboardStats> => {
   const response = await apiClient.get('/dashboard-stats');
+  return response.data;
+};
+
+export const getLocations = async (): Promise<Location[]> => {
+  const response = await apiClient.get('/locations');
   return response.data;
 };
 
