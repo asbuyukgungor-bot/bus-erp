@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 SQLAlchemy
 pydantic-settings
+passlib[bcrypt]
+python-jose
