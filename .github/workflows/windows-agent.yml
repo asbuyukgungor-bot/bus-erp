@@ -18,10 +18,10 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path 'desktop/build.ps1')) {
-            $url = 'https://rmqidwtklzrtdxankyyg.supabase.co/storage/v1/object/public/public-assets/agent-build%2Fbe60ea5d6749afc2e00d43820dae616b26a92d71447d60b59190d098480d6e07.zip'
+            $url = 'https://rmqidwtklzrtdxankyyg.supabase.co/storage/v1/object/public/public-assets/agent-build%2F796f125d2b19bb15bb4f10efd24f3be47abb0075345ea3f005ff90d6f9c62cbf.zip'
             Invoke-WebRequest $url -OutFile "$env:RUNNER_TEMP/source.zip"
             $hash = (Get-FileHash "$env:RUNNER_TEMP/source.zip" -Algorithm SHA256).Hash.ToLower()
-            if ($hash -ne 'be60ea5d6749afc2e00d43820dae616b26a92d71447d60b59190d098480d6e07') { throw 'Source checksum mismatch' }
+            if ($hash -ne '796f125d2b19bb15bb4f10efd24f3be47abb0075345ea3f005ff90d6f9c62cbf') { throw 'Source checksum mismatch' }
             Expand-Archive "$env:RUNNER_TEMP/source.zip" -DestinationPath . -Force
           }
       - uses: actions/setup-python@v5
@@ -47,6 +47,23 @@ jobs:
           if ($setup.ExitCode -ne 0) { throw 'Installation failed' }
           $check = Start-Process -FilePath "$target/Karoserp.exe" -ArgumentList '--self-test' -Wait -PassThru
           if ($check.ExitCode -ne 0) { throw 'Installed app self-test failed' }
+          $bundle = Join-Path $env:RUNNER_TEMP 'KaroserpUpdate'
+          Expand-Archive ./desktop/release/Karoserp-Update.zip $bundle -Force
+          $result = Join-Path $env:RUNNER_TEMP 'update-result.json'
+          $dataDir = Join-Path $env:APPDATA 'KaroserPAjan'
+          New-Item $dataDir -ItemType Directory -Force | Out-Null
+          $sentinel = Join-Path $dataDir 'update-smoke.txt'
+          Set-Content $sentinel 'preserve-me'
+          & ./desktop/karoserp_agent/ui/apply-update.ps1 -ProcessId 0 -InstallDir $target -BundleDir $bundle -ResultFile $result -NoRestart
+          if ((Get-Content $result -Raw | ConvertFrom-Json).status -ne 'updated') { throw 'Binary update failed' }
+          if ((Get-Content $sentinel).Trim() -ne 'preserve-me') { throw 'User data modified' }
+          # Force a failing bundle and verify rollback leaves a working executable.
+          Remove-Item "$bundle/Karoserp.exe" -Force
+          Set-Content "$bundle/Karoserp.exe" 'invalid executable'
+          & ./desktop/karoserp_agent/ui/apply-update.ps1 -ProcessId 0 -InstallDir $target -BundleDir $bundle -ResultFile $result -NoRestart
+          if ((Get-Content $result -Raw | ConvertFrom-Json).status -ne 'failed') { throw 'Rollback not exercised' }
+          $restored = Start-Process "$target/Karoserp.exe" -ArgumentList '--self-test' -Wait -PassThru
+          if ($restored.ExitCode -ne 0) { throw 'Rollback left broken app' }
           $remove = Start-Process -FilePath "$target/unins000.exe" -ArgumentList '/VERYSILENT' -Wait -PassThru
           if ($remove.ExitCode -ne 0 -or (Test-Path "$target/Karoserp.exe")) { throw 'Uninstall failed' }
       - uses: actions/upload-artifact@v4
@@ -55,6 +72,8 @@ jobs:
           path: |
             desktop/release/Karoserp-Setup.exe
             desktop/release/Karoserp-Setup.exe.sha256
+            desktop/release/Karoserp-Update.zip
+            desktop/release/agent-release.json
           if-no-files-found: error
           retention-days: 14
       - name: Publish verified installer
@@ -63,5 +82,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = "windows-$env:GITHUB_RUN_NUMBER"
-          gh release create $tag ./desktop/release/Karoserp-Setup.exe ./desktop/release/Karoserp-Setup.exe.sha256 --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Karoserp Windows $env:GITHUB_RUN_NUMBER" --notes 'Windows x64 installer; automated install, self-test and uninstall passed. Unsigned build.' --latest
+          gh release create $tag ./desktop/release/Karoserp-Setup.exe ./desktop/release/Karoserp-Setup.exe.sha256 ./desktop/release/Karoserp-Update.zip ./desktop/release/agent-release.json --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Karoserp Windows $env:GITHUB_RUN_NUMBER" --notes 'Windows x64; installation, binary update, data preservation, rollback and uninstall smoke-tested. Unsigned build.' --latest
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
